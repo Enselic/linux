@@ -599,11 +599,12 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     ///
     /// `item` must not be in a different linked list (with the same id).
     pub unsafe fn remove(&mut self, item: &T) -> Option<ListArc<T, ID>> {
-        // SAFETY: TODO.
+        // SAFETY: The user provided a reference, and references are never dangling. Additionally,
+        // our pointer will not outlive the lifetime of the reference.
         let mut item = unsafe { ListLinks::fields(T::view_links(item)) };
-        // SAFETY: The user provided a reference, and reference are never dangling.
+        // SAFETY: The raw pointer is valid because we just derived it from a reference.
         //
-        // As for why this is not a data race, there are two cases:
+        // As for why deferencing is not a data race, there are two cases:
         //
         //  * If `item` is not in any list, then these fields are read-only and null.
         //  * If `item` is in this list, then we have exclusive access to these fields since we
@@ -628,6 +629,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
             // SAFETY: We just checked that `item` is in a list, so the caller guarantees that it
             // is in this list. The pointers are in the right order.
+            // Mutating `&T` is ok, links are behind `UnsafeCell` (in `Opaque` in `ListLinks`).
             Some(unsafe { self.remove_internal_inner(item, next, prev) })
         } else {
             None
