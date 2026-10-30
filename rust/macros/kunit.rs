@@ -136,14 +136,20 @@ pub(crate) fn kunit_tests(test_suite: Ident, mut module: ItemMod) -> Result<Toke
         );
         processed_items.push(parse_quote! {
             unsafe extern "C" fn #kunit_wrapper_fn_name(_test: *mut ::kernel::bindings::kunit) {
-                (*_test).status = ::kernel::bindings::kunit_status_KUNIT_SKIPPED;
+                // SAFETY: KUnit passes a valid test pointer to this callback.
+                unsafe {
+                    (*_test).status = ::kernel::bindings::kunit_status_KUNIT_SKIPPED;
+                }
 
                 // Append any `cfg` attributes the user might have written on their tests so we
                 // don't attempt to call them when they are `cfg`'d out. An extra `use` is used
                 // here to reduce the length of the assert message.
                 #(#cfg_attrs)*
                 {
-                    (*_test).status = ::kernel::bindings::kunit_status_KUNIT_SUCCESS;
+                    // SAFETY: KUnit passes a valid test pointer to this callback.
+                    unsafe {
+                        (*_test).status = ::kernel::bindings::kunit_status_KUNIT_SUCCESS;
+                    }
                     use ::kernel::kunit::is_test_result_ok;
                     assert!(is_test_result_ok(#test()));
                 }
